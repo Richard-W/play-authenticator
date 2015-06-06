@@ -2,7 +2,7 @@ name := "play-authenticator"
 
 organization := "xyz.wiedenhoeft"
 
-version := "0.1-SNAPSHOT"
+version := "0.1.0"
 
 licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0.html"))
 
@@ -22,7 +22,8 @@ resolvers ++= Seq(
   Resolver.sonatypeRepo("releases"),
   Resolver.sonatypeRepo("snapshots"),
   Resolver.typesafeRepo("releases"),
-  Resolver.typesafeRepo("snapshots")
+  Resolver.typesafeRepo("snapshots"),
+  "Bintray Richard-W" at "https://dl.bintray.com/richard-w/maven"
 )
 
 libraryDependencies ++= Seq(
