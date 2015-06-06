@@ -2,7 +2,7 @@ name := "play-authenticator"
 
 organization := "xyz.wiedenhoeft"
 
-version := "0.1-SNAPSHOT"
+version := "0.2-SNAPSHOT"
 
 licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0.html"))
 
