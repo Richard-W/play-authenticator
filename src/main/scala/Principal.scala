@@ -20,13 +20,15 @@ import reactivemongo.api.collections.default.BSONCollection
 import reactivemongo.api._
 import reactivemongo.bson._
 import scala.concurrent.{ Future, ExecutionContext }
+import java.lang.reflect._
 
 case class Principal private[authenticator](
   id: String,
   name: String,
   private[authenticator] val pass: PasswordHash,
   private val fields: Map[String, String],
-  private val flags: Map[String, Boolean]
+  private val flags: Map[String, Boolean],
+  private val values: BSONDocument
 ) {
 
   private[authenticator] def copy(
@@ -34,9 +36,10 @@ case class Principal private[authenticator](
       name: String = this.name,
       pass: PasswordHash = this.pass,
       fields: Map[String, String] = this.fields,
-      flags: Map[String, Boolean] = this.flags
+      flags: Map[String, Boolean] = this.flags,
+      values: BSONDocument = this.values
   ) = {
-    Principal(id, name, pass, fields, flags)
+    Principal(id, name, pass, fields, flags, values)
   }
 
   def save()(implicit authenticator: Authenticator): Future[Principal] = {
@@ -59,6 +62,24 @@ case class Principal private[authenticator](
     copy(flags = flags + ((flag, value)))
   }
 
+  def value[T](key: String)(implicit reader: BSONReader[_ <: BSONValue, T]): Option[T] = {
+    values.get(key) flatMap { bson ⇒
+      try {
+        // This is so damn ugly... only way i found to make it work though
+        reader match {
+          case r: BSONReader[BSONValue, T]@unchecked ⇒ r.readOpt(bson)
+          case _ ⇒ None
+        }
+      } catch {
+        case _: Throwable ⇒ None
+      }
+    }
+  }
+
+  def value[T, B <: BSONValue](key: String, value: T)(implicit writer: BSONWriter[T, B]): Principal = {
+    copy(values = values ++ BSONDocument(key -> writer.write(value).asInstanceOf[BSONValue]))
+  }
+
   def cpw(pass: String): Principal = {
     copy(pass = PasswordHash.create(pass))
   }
@@ -73,7 +94,8 @@ object Principal {
         bson.getAs[String]("name").get,
         bson.getAs[PasswordHash]("pass").get,
         bson.getAs[Map[String,String]]("fields").get,
-        bson.getAs[Map[String,Boolean]]("flags").get
+        bson.getAs[Map[String,Boolean]]("flags").get,
+        bson.getAs[BSONDocument]("values").get
       )
     }
   }
@@ -85,7 +107,8 @@ object Principal {
         "name" -> princ.name,
         "pass" -> princ.pass,
         "fields" -> princ.fields,
-        "flags" -> princ.flags
+        "flags" -> princ.flags,
+        "values" -> princ.values
       )
     }
   }

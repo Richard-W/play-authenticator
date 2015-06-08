@@ -29,7 +29,7 @@ trait PrincipalController {
   def principalCollection: String
 
   /** Create a principal */
-  def create(name: String, password: String, fields: Map[String, String] = Map(), flags: Map[String, Boolean] = Map()): Future[Try[Principal]]
+  def create(name: String, password: String, fields: Map[String, String] = Map(), flags: Map[String, Boolean] = Map(), values: BSONDocument = BSONDocument()): Future[Try[Principal]]
 
   /** Retrieve a principal by its name from the database */
   def findByName(name: String): Future[Option[Principal]]
@@ -63,9 +63,9 @@ final class PrincipalControllerImpl @Inject()(
     case true ⇒
   }
 
-  def create(name: String, password: String, fields: Map[String, String] = Map(), flags: Map[String, Boolean] = Map() ): Future[Try[Principal]] = {
+  def create(name: String, password: String, fields: Map[String, String] = Map(), flags: Map[String, Boolean] = Map(), values: BSONDocument = BSONDocument()): Future[Try[Principal]] = {
     val collection = mongo.db.collection[BSONCollection](principalCollection)
-    val princ = Principal(BSONObjectID.generate.stringify, name, PasswordHash.create(password), fields, flags)
+    val princ = Principal(BSONObjectID.generate.stringify, name, PasswordHash.create(password), fields, flags, values)
     collection.insert(princ) flatMap { lastError ⇒
       if(lastError.ok) findByID(princ.id) map { opt ⇒ Success(opt.get) }
       else Future.successful(Failure(lastError))

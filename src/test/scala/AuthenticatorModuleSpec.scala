@@ -24,6 +24,8 @@ import play.modules.reactivemongo._
 import scala.concurrent.Future
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import reactivemongo.bson._
+import reactivemongo.bson.DefaultBSONHandlers._
 
 class ReactiveMongoModuleSpec extends FlatSpec with Matchers with BeforeAndAfter with MongoEmbedDatabase {
 
@@ -56,7 +58,7 @@ class ReactiveMongoModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
     princ.pass.verify("wrongpass") should be (false)
   }
 
-  "A Principal" should "keep their id when updated" in {
+  "A Principal" should "keep its id when updated" in {
     implicit val authenticator = injector.instanceOf[Authenticator]
     Await.result(authenticator.principals.create("testuser2", "testpass"), 5.seconds)
     val princ1 = Await.result(authenticator.principals.findByName("testuser2"), 5.seconds).get
@@ -77,6 +79,18 @@ class ReactiveMongoModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
 
     princ1.id should be (id)
     princ2.name should be (name)
+  }
+
+  it should "be able to save arbitrary values" in {
+    implicit val authenticator = injector.instanceOf[Authenticator]
+    val name = "testuser4"
+    val id = Await.result(authenticator.principals.create(name, "testpass"), 5.seconds).get.id
+    val princ1 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
+    princ1.value("test", true).value("str", "test").save
+    val princ2 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
+    princ2.value[Boolean]("test").get should be (true)
+    princ2.value[String]("str").get should be ("test")
+    princ2.value[Boolean]("str") should be (None)
   }
 }
 
