@@ -69,7 +69,7 @@ object Principal {
   implicit val bsonReader = new BSONDocumentReader[Principal] {
     def read(bson: BSONDocument): Principal = {
       Principal(
-        bson.getAs[BSONObjectID]("id").get.stringify,
+        bson.getAs[BSONObjectID]("_id").get.stringify,
         bson.getAs[String]("name").get,
         bson.getAs[PasswordHash]("pass").get,
         bson.getAs[Map[String,String]]("fields").get,
@@ -81,7 +81,7 @@ object Principal {
   implicit val bsonWriter = new BSONDocumentWriter[Principal] {
     def write(princ: Principal): BSONDocument = {
       BSONDocument(
-        "id" -> BSONObjectID(princ.id),
+        "_id" -> BSONObjectID(princ.id),
         "name" -> princ.name,
         "pass" -> princ.pass,
         "fields" -> princ.fields,
