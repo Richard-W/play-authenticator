@@ -65,4 +65,8 @@ final class AuthenticatorImpl @Inject()(
         res(None) map { case (_, result) ⇒ result }
     }
   }
+
+  def unauthenticate()(implicit request: Request[AnyContent], result: Result): Future[Result] = {
+    Future.successful(result.withSession(request.session - "authenticatorPrincipal"))
+  }
 }
