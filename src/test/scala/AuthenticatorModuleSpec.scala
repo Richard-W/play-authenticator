@@ -16,6 +16,8 @@ package play.modules.authenticator
 
 import org.scalatest._
 import com.github.simplyscala.{ MongoEmbedDatabase, MongodProps }
+import play.api._
+import play.api.inject._
 import play.api.inject.guice._
 import play.api.libs.concurrent.Execution.Implicits._
 import play.modules.reactivemongo._
@@ -26,16 +28,18 @@ import scala.concurrent.duration._
 class ReactiveMongoModuleSpec extends FlatSpec with Matchers with BeforeAndAfter with MongoEmbedDatabase {
 
   val mongoURI = "mongodb://localhost:12345/test"
-  val application = new GuiceApplicationBuilder()
-    .configure("mongo.uri" -> mongoURI)
-    .bindings(new ReactiveMongoModule)
-    .bindings(new AuthenticatorModule)
-    .build
-  val injector = application.injector
+  var application: Application = null
+  var injector: Injector = null
 
   var mongoProps: MongodProps = null
 
   before {
+    application = new GuiceApplicationBuilder()
+      .configure("mongo.uri" -> mongoURI)
+      .bindings(new ReactiveMongoModule)
+      .bindings(new AuthenticatorModule)
+      .build
+    injector = application.injector
     mongoProps = mongoStart()
   }
 
@@ -46,10 +50,22 @@ class ReactiveMongoModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
 
   "AuthenticatorModule" should "supply a working Authenticator" in {
     implicit val authenticator = injector.instanceOf[Authenticator]
-    Await.result(authenticator.principals.create("testuser", "testpass"), Duration.Inf)
-    val princ = Await.result(authenticator.principals.find("testuser"), Duration.Inf).get
+    Await.result(authenticator.principals.create("testuser", "testpass"), 5.seconds)
+    val princ = Await.result(authenticator.principals.find("testuser"), 5.seconds).get
     princ.pass.verify("testpass") should be (true)
     princ.pass.verify("wrongpass") should be (false)
+  }
+
+  "A Principal" should "keep their id when updated" in {
+    implicit val authenticator = injector.instanceOf[Authenticator]
+    Await.result(authenticator.principals.create("testuser2", "testpass"), 5.seconds)
+    val princ1 = Await.result(authenticator.principals.find("testuser2"), 5.seconds).get
+    Await.result(princ1.field("foo", "bar").save, Duration.Inf)
+    val princ2 = Await.result(authenticator.principals.find("testuser2"), 5.seconds).get
+
+    princ1.id should be (princ2.id)
+    princ1.field("foo").isDefined should be (false)
+    princ2.field("foo").get should be ("bar")
   }
 }
 

@@ -62,10 +62,10 @@ final class PrincipalControllerImpl @Inject()(
 
   def create(name: String, password: String, fields: Map[String, String] = Map(), flags: Map[String, Boolean] = Map() ): Future[Try[Principal]] = {
     val collection = mongo.db.collection[BSONCollection](principalCollection)
-    val princ = Principal(name, PasswordHash.create(password), fields, flags)
-    collection.insert(princ) map { lastError ⇒
-      if(lastError.ok) Success(princ)
-      else Failure(lastError)
+    val princ = Principal(BSONObjectID.generate.stringify, name, PasswordHash.create(password), fields, flags)
+    collection.insert(princ) flatMap { lastError ⇒
+      if(lastError.ok) find(princ.name) map { opt ⇒ Success(opt.get) }
+      else Future.successful(Failure(lastError))
     }
   }
 

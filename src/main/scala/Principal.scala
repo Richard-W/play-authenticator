@@ -22,19 +22,21 @@ import reactivemongo.bson._
 import scala.concurrent.{ Future, ExecutionContext }
 
 case class Principal private[authenticator](
+  id: String,
   name: String,
-  pass: PasswordHash,
-  fields: Map[String, String],
-  flags: Map[String, Boolean]
+  private[authenticator] val pass: PasswordHash,
+  private val fields: Map[String, String],
+  private val flags: Map[String, Boolean]
 ) {
 
   private[authenticator] def copy(
+      id: String = this.id,
       name: String = this.name,
       pass: PasswordHash = this.pass,
       fields: Map[String, String] = this.fields,
       flags: Map[String, Boolean] = this.flags
   ) = {
-    Principal(name, pass, fields, flags)
+    Principal(id, name, pass, fields, flags)
   }
 
   def save()(implicit authenticator: Authenticator): Future[Principal] = {
@@ -67,6 +69,7 @@ object Principal {
   implicit val bsonReader = new BSONDocumentReader[Principal] {
     def read(bson: BSONDocument): Principal = {
       Principal(
+        bson.getAs[BSONObjectID]("id").get.stringify,
         bson.getAs[String]("name").get,
         bson.getAs[PasswordHash]("pass").get,
         bson.getAs[Map[String,String]]("fields").get,
@@ -78,6 +81,7 @@ object Principal {
   implicit val bsonWriter = new BSONDocumentWriter[Principal] {
     def write(princ: Principal): BSONDocument = {
       BSONDocument(
+        "id" -> BSONObjectID(princ.id),
         "name" -> princ.name,
         "pass" -> princ.pass,
         "fields" -> princ.fields,
