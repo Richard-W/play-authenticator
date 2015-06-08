@@ -62,12 +62,12 @@ class ReactiveMongoModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
     implicit val authenticator = injector.instanceOf[Authenticator]
     Await.result(authenticator.principals.create("testuser2", "testpass"), 5.seconds)
     val princ1 = Await.result(authenticator.principals.findByName("testuser2"), 5.seconds).get
-    Await.result(princ1.field("foo", "bar").save, Duration.Inf)
+    Await.result(princ1.value("foo", "bar").save, Duration.Inf)
     val princ2 = Await.result(authenticator.principals.findByName("testuser2"), 5.seconds).get
 
     princ1.id should be (princ2.id)
-    princ1.field("foo").isDefined should be (false)
-    princ2.field("foo").get should be ("bar")
+    princ1.value[String]("foo").isDefined should be (false)
+    princ2.value[String]("foo").get should be ("bar")
   }
 
   it should "be retrievable by its name and id" in {

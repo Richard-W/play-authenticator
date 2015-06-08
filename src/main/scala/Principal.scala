@@ -26,8 +26,6 @@ case class Principal private[authenticator](
   id: String,
   name: String,
   private[authenticator] val pass: PasswordHash,
-  private val fields: Map[String, String],
-  private val flags: Map[String, Boolean],
   private val values: BSONDocument
 ) {
 
@@ -35,31 +33,13 @@ case class Principal private[authenticator](
       id: String = this.id,
       name: String = this.name,
       pass: PasswordHash = this.pass,
-      fields: Map[String, String] = this.fields,
-      flags: Map[String, Boolean] = this.flags,
       values: BSONDocument = this.values
   ) = {
-    Principal(id, name, pass, fields, flags, values)
+    Principal(id, name, pass, values)
   }
 
   def save()(implicit authenticator: Authenticator): Future[Principal] = {
     authenticator.principals.save(this)
-  }
-
-  def field(field: String): Option[String] = {
-    fields.get(field)
-  }
-
-  def field(field: String, value: String): Principal = {
-    copy(fields = fields + ((field, value)))
-  }
-
-  def flag(flag: String): Option[Boolean] = {
-    flags.get(flag)
-  }
-
-  def flag(flag: String, value: Boolean): Principal = {
-    copy(flags = flags + ((flag, value)))
   }
 
   def value[T](key: String)(implicit reader: BSONReader[_ <: BSONValue, T]): Option[T] = {
@@ -93,8 +73,6 @@ object Principal {
         bson.getAs[BSONObjectID]("_id").get.stringify,
         bson.getAs[String]("name").get,
         bson.getAs[PasswordHash]("pass").get,
-        bson.getAs[Map[String,String]]("fields").get,
-        bson.getAs[Map[String,Boolean]]("flags").get,
         bson.getAs[BSONDocument]("values").get
       )
     }
@@ -106,8 +84,6 @@ object Principal {
         "_id" -> BSONObjectID(princ.id),
         "name" -> princ.name,
         "pass" -> princ.pass,
-        "fields" -> princ.fields,
-        "flags" -> princ.flags,
         "values" -> princ.values
       )
     }
