@@ -44,18 +44,18 @@ final class AuthenticatorImpl @Inject()(
   import actorSystem.dispatcher
 
   def principal()(implicit request: Request[AnyContent]): Future[Option[Principal]] = {
-    request.session.get("authenticatorPrincipal") match {
-      case Some(princName) ⇒ principals.find(princName)
+    request.session.get("authenticatorID") match {
+      case Some(id) ⇒ principals.findByID(id)
       case None ⇒ Future.successful(None)
     }
   }
 
   def authenticate(name: String, pass: String)(res: (Option[Principal]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result] = {
-    principals.find(name) flatMap {
+    principals.findByName(name) flatMap {
       case Some(princ) ⇒
         if(princ.pass.verify(pass)) {
           res(Some(princ)) map {
-            case (true, result) ⇒ result.withSession(request.session + ("authenticatorPrincipal" -> princ.name))
+            case (true, result) ⇒ result.withSession(request.session + ("authenticatorID" -> princ.id))
             case (false, result) ⇒ result
           }
         } else {
@@ -67,6 +67,6 @@ final class AuthenticatorImpl @Inject()(
   }
 
   def unauthenticate()(implicit request: Request[AnyContent], result: Result): Future[Result] = {
-    Future.successful(result.withSession(request.session - "authenticatorPrincipal"))
+    Future.successful(result.withSession(request.session - "authenticatorID"))
   }
 }

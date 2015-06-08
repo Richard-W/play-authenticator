@@ -51,7 +51,7 @@ class ReactiveMongoModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
   "AuthenticatorModule" should "supply a working Authenticator" in {
     implicit val authenticator = injector.instanceOf[Authenticator]
     Await.result(authenticator.principals.create("testuser", "testpass"), 5.seconds)
-    val princ = Await.result(authenticator.principals.find("testuser"), 5.seconds).get
+    val princ = Await.result(authenticator.principals.findByName("testuser"), 5.seconds).get
     princ.pass.verify("testpass") should be (true)
     princ.pass.verify("wrongpass") should be (false)
   }
@@ -59,13 +59,24 @@ class ReactiveMongoModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
   "A Principal" should "keep their id when updated" in {
     implicit val authenticator = injector.instanceOf[Authenticator]
     Await.result(authenticator.principals.create("testuser2", "testpass"), 5.seconds)
-    val princ1 = Await.result(authenticator.principals.find("testuser2"), 5.seconds).get
+    val princ1 = Await.result(authenticator.principals.findByName("testuser2"), 5.seconds).get
     Await.result(princ1.field("foo", "bar").save, Duration.Inf)
-    val princ2 = Await.result(authenticator.principals.find("testuser2"), 5.seconds).get
+    val princ2 = Await.result(authenticator.principals.findByName("testuser2"), 5.seconds).get
 
     princ1.id should be (princ2.id)
     princ1.field("foo").isDefined should be (false)
     princ2.field("foo").get should be ("bar")
+  }
+
+  it should "be retrievable by its name and id" in {
+    implicit val authenticator = injector.instanceOf[Authenticator]
+    val name = "testuser3"
+    val id = Await.result(authenticator.principals.create(name, "testpass"), 5.seconds).get.id
+    val princ1 = Await.result(authenticator.principals.findByName(name), 5.seconds).get
+    val princ2 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
+
+    princ1.id should be (id)
+    princ2.name should be (name)
   }
 }
 

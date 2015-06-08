@@ -31,8 +31,11 @@ trait PrincipalController {
   /** Create a principal */
   def create(name: String, password: String, fields: Map[String, String] = Map(), flags: Map[String, Boolean] = Map()): Future[Try[Principal]]
 
-  /** Retrieve a principal from the database */
-  def find(name: String): Future[Option[Principal]]
+  /** Retrieve a principal by its name from the database */
+  def findByName(name: String): Future[Option[Principal]]
+
+  /** Retrieve a principal by its id from the database */
+  def findByID(id: String): Future[Option[Principal]]
 
   /** Save a principal back to the database */
   def save(princ: Principal): Future[Principal]
@@ -64,14 +67,22 @@ final class PrincipalControllerImpl @Inject()(
     val collection = mongo.db.collection[BSONCollection](principalCollection)
     val princ = Principal(BSONObjectID.generate.stringify, name, PasswordHash.create(password), fields, flags)
     collection.insert(princ) flatMap { lastError ⇒
-      if(lastError.ok) find(princ.name) map { opt ⇒ Success(opt.get) }
+      if(lastError.ok) findByID(princ.id) map { opt ⇒ Success(opt.get) }
       else Future.successful(Failure(lastError))
     }
   }
 
-  def find(name: String): Future[Option[Principal]] = {
+  def findByName(name: String): Future[Option[Principal]] = {
     val collection = mongo.db.collection[BSONCollection](principalCollection)
     collection.find(BSONDocument("name" -> name)).cursor[Principal].collect[Seq]() map { seq ⇒
+      if(seq.length > 0) Some(seq(0))
+      else None
+    }
+  }
+
+  def findByID(id: String): Future[Option[Principal]] = {
+    val collection = mongo.db.collection[BSONCollection](principalCollection)
+    collection.find(BSONDocument("_id" -> BSONObjectID(id))).cursor[Principal].collect[Seq]() map { seq ⇒
       if(seq.length > 0) Some(seq(0))
       else None
     }
