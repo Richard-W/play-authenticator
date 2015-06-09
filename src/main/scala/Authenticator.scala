@@ -33,6 +33,9 @@ trait Authenticator {
 
   /** Authenticate a principal using its username and password */
   def authenticate(name: String, pass: String)(res: (Option[Principal]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result]
+
+  /** Unauthenticate a principal */
+  def unauthenticate(result: Result)(implicit request: Request[AnyContent]): Future[Result]
 }
 
 final class AuthenticatorImpl @Inject()(
@@ -66,7 +69,7 @@ final class AuthenticatorImpl @Inject()(
     }
   }
 
-  def unauthenticate()(implicit request: Request[AnyContent], result: Result): Future[Result] = {
+  def unauthenticate(result: Result)(implicit request: Request[AnyContent]): Future[Result] = {
     Future.successful(result.withSession(request.session - "authenticatorID"))
   }
 }
