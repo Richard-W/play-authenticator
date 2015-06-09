@@ -57,7 +57,7 @@ case class Principal private[authenticator](
   }
 
   def value[T, B <: BSONValue](key: String, value: T)(implicit writer: BSONWriter[T, B]): Principal = {
-    copy(values = values ++ BSONDocument(key -> writer.write(value).asInstanceOf[BSONValue]))
+    copy(values = BSONDocument(key -> writer.write(value).asInstanceOf[BSONValue]) ++ values)
   }
 
   def cpw(pass: String): Principal = {
