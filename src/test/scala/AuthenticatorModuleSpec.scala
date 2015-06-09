@@ -92,5 +92,16 @@ class ReactiveMongoModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
     princ2.value[String]("str").get should be ("test")
     princ2.value[Boolean]("str") should be (None)
   }
+
+  it should "be able to cleanly update values" in {
+    implicit val authenticator = injector.instanceOf[Authenticator]
+    val name = "testuser4"
+    val id = Await.result(authenticator.principals.create(name, "testpass", BSONDocument("key1" -> "v1", "key2" -> "v2")), 5.seconds).get.id
+    val princ1 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
+    Await.result(princ1.value("key1", "v3").save, 5.seconds)
+    val princ2 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
+    princ2.value[String]("key1").get should be ("v3")
+    princ2.value[String]("key2").get should be ("v2")
+  }
 }
 
