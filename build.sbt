@@ -18,11 +18,14 @@ scalaVersion := "2.11.6"
 
 scalacOptions ++= Seq("-feature", "-deprecation", "-unchecked")
 
+useGpg := true
+
+usePgpKeyHex("CB8F8B69")
+
 resolvers ++= Seq(
   Resolver.sonatypeRepo("releases"),
-  Resolver.sonatypeRepo("snapshots"),
   Resolver.typesafeRepo("releases"),
-  Resolver.typesafeRepo("snapshots")
+  Resolver.jcenterRepo
 )
 
 libraryDependencies ++= Seq(
