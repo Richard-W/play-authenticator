@@ -25,8 +25,6 @@ import akka.actor.ActorSystem
 import scala.util.{ Try, Success, Failure }
 
 trait PrincipalController {
-  /** Name of the principal collection */
-  def principalCollection: String
 
   /** Create a principal */
   def create(name: String, password: String, values: BSONDocument = BSONDocument()): Future[Try[Principal]]
@@ -53,13 +51,15 @@ final class PrincipalControllerImpl @Inject()(
   /* Import execution context */
   import actorSystem.dispatcher
 
-  val principalCollection = conf.getString("authenticator.principalCollection") match {
+  val collectionName = conf.getString("authenticator.principalCollection") match {
     case Some(collection) ⇒ collection
     case None ⇒ "authenticatorPrincipals"
   }
 
+  def collection = mongo.db.collection[BSONCollection](collectionName)
+
   /* Ensure indizes are set correctly */
-  mongo.db.collection[BSONCollection](principalCollection)
+  collection
       .indexesManager
       .ensure(indexes.Index(Seq(("name", indexes.IndexType.Text)), unique = true)) map {
     case false ⇒ throw new Exception("Can not set index for users")
@@ -67,7 +67,6 @@ final class PrincipalControllerImpl @Inject()(
   }
 
   def create(name: String, password: String, values: BSONDocument = BSONDocument()): Future[Try[Principal]] = {
-    val collection = mongo.db.collection[BSONCollection](principalCollection)
     val princ = Principal(BSONObjectID.generate.stringify, name, PasswordHash.create(password), values)
     collection.insert(princ) flatMap { lastError ⇒
       if(lastError.ok) findByID(princ.id) map { opt ⇒ Success(opt.get) }
@@ -76,7 +75,6 @@ final class PrincipalControllerImpl @Inject()(
   }
 
   def findByName(name: String): Future[Option[Principal]] = {
-    val collection = mongo.db.collection[BSONCollection](principalCollection)
     collection.find(BSONDocument("name" -> name)).cursor[Principal].collect[Seq]() map { seq ⇒
       if(seq.length > 0) Some(seq(0))
       else None
@@ -84,7 +82,6 @@ final class PrincipalControllerImpl @Inject()(
   }
 
   def findByID(id: String): Future[Option[Principal]] = {
-    val collection = mongo.db.collection[BSONCollection](principalCollection)
     collection.find(BSONDocument("_id" -> BSONObjectID(id))).cursor[Principal].collect[Seq]() map { seq ⇒
       if(seq.length > 0) Some(seq(0))
       else None
@@ -92,12 +89,10 @@ final class PrincipalControllerImpl @Inject()(
   }
 
   def findAll: Future[Seq[Principal]] = {
-    val collection = mongo.db.collection[BSONCollection](principalCollection)
     collection.find(BSONDocument()).cursor[Principal].collect[Seq]()
   }
 
   def save(princ: Principal): Future[Principal] = {
-    val collection = mongo.db.collection[BSONCollection](principalCollection)
     collection.update(BSONDocument("name" -> princ.name), princ) map { lastError ⇒
       if(lastError.ok) {
         princ
