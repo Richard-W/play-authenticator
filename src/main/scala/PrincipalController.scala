@@ -37,6 +37,9 @@ trait PrincipalController {
   /** Retrieve a principal by its id from the database */
   def findByID(id: String): Future[Option[Principal]]
 
+  /** Get all registered principals */
+  def findAll: Future[Seq[Principal]]
+
   /** Save a principal back to the database */
   def save(princ: Principal): Future[Principal]
 }
@@ -86,6 +89,11 @@ final class PrincipalControllerImpl @Inject()(
       if(seq.length > 0) Some(seq(0))
       else None
     }
+  }
+
+  def findAll: Future[Seq[Principal]] = {
+    val collection = mongo.db.collection[BSONCollection](principalCollection)
+    collection.find(BSONDocument()).cursor[Principal].collect[Seq]()
   }
 
   def save(princ: Principal): Future[Principal] = {
