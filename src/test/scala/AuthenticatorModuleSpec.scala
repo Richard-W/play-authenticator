@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 import reactivemongo.bson._
 import reactivemongo.bson.DefaultBSONHandlers._
 
-class ReactiveMongoModuleSpec extends FlatSpec with Matchers with BeforeAndAfter with MongoEmbedDatabase {
+class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter with MongoEmbedDatabase {
 
   val mongoURI = "mongodb://localhost:12345/test"
   var application: Application = null
