@@ -103,5 +103,17 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
     princ2.value[String]("key1").get should be ("v3")
     princ2.value[String]("key2").get should be ("v2")
   }
+
+  "The PrincipalController" should "be able to find all principals." in {
+    implicit val authenticator = injector.instanceOf[Authenticator]
+    Await.result(authenticator.principals.create("a1", "testpass"), 5.seconds)
+    Await.result(authenticator.principals.create("a2", "testpass"), 5.seconds)
+    Await.result(authenticator.principals.create("a3", "testpass"), 5.seconds)
+
+    val allPrincs = Await.result(authenticator.principals.findAll, 5.seconds) map { princ ⇒ princ.name }
+    allPrincs.contains("a1") should be (true)
+    allPrincs.contains("a2") should be (true)
+    allPrincs.contains("a3") should be (true)
+  }
 }
 
