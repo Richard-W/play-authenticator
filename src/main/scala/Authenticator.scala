@@ -56,7 +56,7 @@ final class AuthenticatorImpl @Inject()(
   def authenticate(name: String, pass: String)(res: (Option[Principal]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result] = {
     principals.findByName(name) flatMap {
       case Some(princ) ⇒
-        if(princ.pass.verify(pass)) {
+        if(princ.verifyPass(pass)) {
           res(Some(princ)) map {
             case (true, result) ⇒ result.withSession(request.session + ("authenticatorID" -> princ.id))
             case (false, result) ⇒ result

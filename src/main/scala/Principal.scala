@@ -25,14 +25,14 @@ import java.lang.reflect._
 case class Principal private[authenticator](
   id: String,
   name: String,
-  private[authenticator] val pass: PasswordHash,
+  private val pass: Option[PasswordHash],
   private val values: BSONDocument
 ) {
 
   private[authenticator] def copy(
       id: String = this.id,
       name: String = this.name,
-      pass: PasswordHash = this.pass,
+      pass: Option[PasswordHash] = this.pass,
       values: BSONDocument = this.values
   ) = {
     Principal(id, name, pass, values)
@@ -61,8 +61,10 @@ case class Principal private[authenticator](
   }
 
   def cpw(pass: String): Principal = {
-    copy(pass = PasswordHash.create(pass))
+    copy(pass = Some(PasswordHash.create(pass)))
   }
+
+  def verifyPass(password: String): Boolean = (pass map { _.verify(password) }).getOrElse(false)
 }
 
 object Principal {
@@ -72,7 +74,7 @@ object Principal {
       Principal(
         bson.getAs[BSONObjectID]("_id").get.stringify,
         bson.getAs[String]("name").get,
-        bson.getAs[PasswordHash]("pass").get,
+        (bson.getAs[PasswordHash]("pass") map { Some(_) }).getOrElse(None),
         bson.getAs[BSONDocument]("values").get
       )
     }
@@ -83,9 +85,11 @@ object Principal {
       BSONDocument(
         "_id" -> BSONObjectID(princ.id),
         "name" -> princ.name,
-        "pass" -> princ.pass,
         "values" -> princ.values
-      )
+      ) ++ (princ.pass match {
+        case Some(pass) ⇒ BSONDocument("pass" -> princ.pass)
+        case None ⇒ BSONDocument()
+      })
     }
   }
 }

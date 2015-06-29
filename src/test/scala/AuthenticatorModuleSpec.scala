@@ -54,8 +54,8 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
     implicit val authenticator = injector.instanceOf[Authenticator]
     Await.result(authenticator.principals.create("testuser", "testpass"), 5.seconds)
     val princ = Await.result(authenticator.principals.findByName("testuser"), 5.seconds).get
-    princ.pass.verify("testpass") should be (true)
-    princ.pass.verify("wrongpass") should be (false)
+    princ.verifyPass("testpass") should be (true)
+    princ.verifyPass("wrongpass") should be (false)
   }
 
   "A Principal" should "keep its id when updated" in {
