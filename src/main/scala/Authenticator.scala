@@ -26,7 +26,10 @@ import scala.concurrent.Future
 import play.modules.reactivemongo.ReactiveMongo
 
 trait Authenticator {
-  /** The principal controller. May be used to manage principals */
+  /** Controller to retrieve, save, and create principals
+    *
+    * This controller is used to manage creation of principal objects.
+    */
   def principals: PrincipalController
 
   /** Get the currently authed principal */
@@ -61,6 +64,9 @@ trait Authenticator {
     *
     * The boolean return value of res can be used to prevent a login even though the credentials are
     * correct.
+    *
+    * When the principal is not existing but the openID is valid res should trigger some kind of application specific registration
+    * process.
     */
   def openIDCallback(res: (Option[Principal], Option[String], Map[String, String]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result]
 
