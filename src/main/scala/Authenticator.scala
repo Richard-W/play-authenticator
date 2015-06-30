@@ -52,7 +52,11 @@ trait Authenticator {
     */
   def authenticateWithPassword(name: String, pass: String)(res: (Option[Principal]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result]
 
-  /** Authenticate a principal using its openid */
+  /** Authenticate a principal using its openid
+    *
+    * The future this function return might fail if the openid authentication process fails at retrieving
+    * the redirect URL. You should handle this failure properly.
+    */
   def authenticateWithOpenID(openid: String, callback: Call, axRequired: Seq[(String, String)] = Seq.empty, axOptional: Seq[(String, String)] = Seq.empty, realm: Option[String] = None)(implicit request: Request[AnyContent]): Future[Result]
 
   /** Callback for openid
