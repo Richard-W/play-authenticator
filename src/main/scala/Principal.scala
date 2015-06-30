@@ -25,6 +25,7 @@ import java.lang.reflect._
 case class Principal private[authenticator](
   id: String,
   name: String,
+  openid: Option[String],
   private val pass: Option[PasswordHash],
   private val values: BSONDocument
 ) {
@@ -32,10 +33,11 @@ case class Principal private[authenticator](
   private[authenticator] def copy(
       id: String = this.id,
       name: String = this.name,
+      openid: Option[String] = this.openid,
       pass: Option[PasswordHash] = this.pass,
       values: BSONDocument = this.values
   ) = {
-    Principal(id, name, pass, values)
+    Principal(id, name, openid, pass, values)
   }
 
   def save()(implicit authenticator: Authenticator): Future[Principal] = {
@@ -60,8 +62,12 @@ case class Principal private[authenticator](
     copy(values = BSONDocument(key -> writer.write(value).asInstanceOf[BSONValue]) ++ values)
   }
 
-  def cpw(pass: String): Principal = {
+  def changePassword(pass: String): Principal = {
     copy(pass = Some(PasswordHash.create(pass)))
+  }
+
+  def changeOpenID(openid: String): Principal = {
+    copy(openid = Some(openid))
   }
 
   def verifyPass(password: String): Boolean = (pass map { _.verify(password) }).getOrElse(false)
@@ -74,6 +80,7 @@ object Principal {
       Principal(
         bson.getAs[BSONObjectID]("_id").get.stringify,
         bson.getAs[String]("name").get,
+        (bson.getAs[String]("openid") map { Some(_) }).getOrElse(None),
         (bson.getAs[PasswordHash]("pass") map { Some(_) }).getOrElse(None),
         bson.getAs[BSONDocument]("values").get
       )
@@ -87,7 +94,10 @@ object Principal {
         "name" -> princ.name,
         "values" -> princ.values
       ) ++ (princ.pass match {
-        case Some(pass) ⇒ BSONDocument("pass" -> princ.pass)
+        case Some(pass) ⇒ BSONDocument("pass" -> princ.pass.get)
+        case None ⇒ BSONDocument()
+      }) ++ (princ.openid match {
+        case Some(pass) ⇒ BSONDocument("openid" -> princ.openid.get)
         case None ⇒ BSONDocument()
       })
     }

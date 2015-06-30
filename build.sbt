@@ -28,10 +28,14 @@ resolvers ++= Seq(
   Resolver.jcenterRepo
 )
 
-libraryDependencies ++= Seq(
-  "com.typesafe.play"       %% "play"                 % "2.4.0"         % "provided",
-  "xyz.wiedenhoeft"         %% "play-reactivemongo"   % "0.1.0"         % "compile",
-  "xyz.wiedenhoeft"         %% "scalacrypt"           % "0.4.0"         % "compile",
-  "org.scalatest"           %% "scalatest"            % "2.2.4"         % "test",
-  "com.github.simplyscala"  %% "scalatest-embedmongo" % "0.2.2"         % "test"
-)
+libraryDependencies ++= {
+  val playVersion = "2.4.1"
+  Seq(
+    "com.typesafe.play"       %% "play"                 % playVersion     % "provided",
+    "com.typesafe.play"       %% "play-ws"              % playVersion     % "compile",
+    "xyz.wiedenhoeft"         %% "play-reactivemongo"   % "0.1.0"         % "compile",
+    "xyz.wiedenhoeft"         %% "scalacrypt"           % "0.4.0"         % "compile",
+    "org.scalatest"           %% "scalatest"            % "2.2.4"         % "test",
+    "com.github.simplyscala"  %% "scalatest-embedmongo" % "0.2.2"         % "test"
+  )
+}

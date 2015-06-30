@@ -52,7 +52,7 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
 
   "AuthenticatorModule" should "supply a working Authenticator" in {
     implicit val authenticator = injector.instanceOf[Authenticator]
-    Await.result(authenticator.principals.create("testuser", "testpass"), 5.seconds)
+    Await.result(authenticator.principals.createWithPassword("testuser", "testpass"), 5.seconds)
     val princ = Await.result(authenticator.principals.findByName("testuser"), 5.seconds).get
     princ.verifyPass("testpass") should be (true)
     princ.verifyPass("wrongpass") should be (false)
@@ -60,7 +60,7 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
 
   "A Principal" should "keep its id when updated" in {
     implicit val authenticator = injector.instanceOf[Authenticator]
-    Await.result(authenticator.principals.create("testuser2", "testpass"), 5.seconds)
+    Await.result(authenticator.principals.createWithPassword("testuser2", "testpass"), 5.seconds)
     val princ1 = Await.result(authenticator.principals.findByName("testuser2"), 5.seconds).get
     Await.result(princ1.value("foo", "bar").save, Duration.Inf)
     val princ2 = Await.result(authenticator.principals.findByName("testuser2"), 5.seconds).get
@@ -73,7 +73,7 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
   it should "be retrievable by its name and id" in {
     implicit val authenticator = injector.instanceOf[Authenticator]
     val name = "testuser3"
-    val id = Await.result(authenticator.principals.create(name, "testpass"), 5.seconds).get.id
+    val id = Await.result(authenticator.principals.createWithPassword(name, "testpass"), 5.seconds).get.id
     val princ1 = Await.result(authenticator.principals.findByName(name), 5.seconds).get
     val princ2 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
 
@@ -84,7 +84,7 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
   it should "be able to save arbitrary values" in {
     implicit val authenticator = injector.instanceOf[Authenticator]
     val name = "testuser4"
-    val id = Await.result(authenticator.principals.create(name, "testpass"), 5.seconds).get.id
+    val id = Await.result(authenticator.principals.createWithPassword(name, "testpass"), 5.seconds).get.id
     val princ1 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
     princ1.value("test", true).value("str", "test").save
     val princ2 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
@@ -96,7 +96,7 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
   it should "be able to cleanly update values" in {
     implicit val authenticator = injector.instanceOf[Authenticator]
     val name = "testuser4"
-    val id = Await.result(authenticator.principals.create(name, "testpass", BSONDocument("key1" -> "v1", "key2" -> "v2")), 5.seconds).get.id
+    val id = Await.result(authenticator.principals.createWithPassword(name, "testpass", BSONDocument("key1" -> "v1", "key2" -> "v2")), 5.seconds).get.id
     val princ1 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
     Await.result(princ1.value("key1", "v3").save, 5.seconds)
     val princ2 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
@@ -104,11 +104,18 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
     princ2.value[String]("key2").get should be ("v2")
   }
 
+  it should "be registerable with an OpenID" in {
+    implicit val authenticator = injector.instanceOf[Authenticator]
+    Await.result(authenticator.principals.createWithOpenID("openiduser", "https://example.com/openiduser"), 5.seconds)
+    val princ = Await.result(authenticator.principals.findByName("openiduser"), 5.seconds).get
+    princ.name should be ("openiduser")
+  }
+
   "The PrincipalController" should "be able to find all principals." in {
     implicit val authenticator = injector.instanceOf[Authenticator]
-    Await.result(authenticator.principals.create("a1", "testpass"), 5.seconds)
-    Await.result(authenticator.principals.create("a2", "testpass"), 5.seconds)
-    Await.result(authenticator.principals.create("a3", "testpass"), 5.seconds)
+    Await.result(authenticator.principals.createWithPassword("a1", "testpass"), 5.seconds)
+    Await.result(authenticator.principals.createWithPassword("a2", "testpass"), 5.seconds)
+    Await.result(authenticator.principals.createWithPassword("a3", "testpass"), 5.seconds)
 
     val allPrincs = Await.result(authenticator.principals.findAll, 5.seconds) map { princ ⇒ princ.name }
     allPrincs.contains("a1") should be (true)

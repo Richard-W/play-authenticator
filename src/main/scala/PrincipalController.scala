@@ -26,14 +26,20 @@ import scala.util.{ Try, Success, Failure }
 
 trait PrincipalController {
 
+  /** Create a principal with a password */
+  def createWithPassword(name: String, password: String, values: BSONDocument = BSONDocument()): Future[Try[Principal]]
+
   /** Create a principal */
-  def create(name: String, password: String, values: BSONDocument = BSONDocument()): Future[Try[Principal]]
+  def createWithOpenID(name: String, openid: String, values: BSONDocument = BSONDocument()): Future[Try[Principal]]
 
   /** Retrieve a principal by its name from the database */
   def findByName(name: String): Future[Option[Principal]]
 
   /** Retrieve a principal by its id from the database */
   def findByID(id: String): Future[Option[Principal]]
+
+  /** Retrieve a principal by its openid */
+  def findByOpenID(openid: String): Future[Option[Principal]]
 
   /** Get all registered principals */
   def findAll: Future[Seq[Principal]]
@@ -42,7 +48,7 @@ trait PrincipalController {
   def save(princ: Principal): Future[Principal]
 }
 
-final class PrincipalControllerImpl @Inject()(
+private[authenticator] class PrincipalControllerImpl @Inject()(
     conf: Configuration,
     mongo: ReactiveMongo,
     actorSystem: ActorSystem
@@ -59,15 +65,26 @@ final class PrincipalControllerImpl @Inject()(
   def collection = mongo.db.collection[BSONCollection](collectionName)
 
   /* Ensure indizes are set correctly */
-  collection
-      .indexesManager
-      .ensure(indexes.Index(Seq(("name", indexes.IndexType.Text)), unique = true)) map {
+  val indexManager = collection.indexesManager
+  indexManager.ensure(indexes.Index(Seq(("name", indexes.IndexType.Text)), unique = true)) map {
+    case false ⇒ throw new Exception("Can not set index for users")
+    case true ⇒
+  }
+  indexManager.ensure(indexes.Index(Seq(("openid", indexes.IndexType.Text)), unique = true)) map {
     case false ⇒ throw new Exception("Can not set index for users")
     case true ⇒
   }
 
-  def create(name: String, password: String, values: BSONDocument = BSONDocument()): Future[Try[Principal]] = {
-    val princ = Principal(BSONObjectID.generate.stringify, name, Some(PasswordHash.create(password)), values)
+  def createWithPassword(name: String, password: String, values: BSONDocument = BSONDocument()): Future[Try[Principal]] = {
+    val princ = Principal(BSONObjectID.generate.stringify, name, None, Some(PasswordHash.create(password)), values)
+    collection.insert(princ) flatMap { lastError ⇒
+      if(lastError.ok) findByID(princ.id) map { opt ⇒ Success(opt.get) }
+      else Future.successful(Failure(lastError))
+    }
+  }
+
+  def createWithOpenID(name: String, openid: String, values: BSONDocument = BSONDocument()): Future[Try[Principal]] = {
+    val princ = Principal(BSONObjectID.generate.stringify, name, Some(openid), None, values)
     collection.insert(princ) flatMap { lastError ⇒
       if(lastError.ok) findByID(princ.id) map { opt ⇒ Success(opt.get) }
       else Future.successful(Failure(lastError))
@@ -83,6 +100,13 @@ final class PrincipalControllerImpl @Inject()(
 
   def findByID(id: String): Future[Option[Principal]] = {
     collection.find(BSONDocument("_id" -> BSONObjectID(id))).cursor[Principal].collect[Seq]() map { seq ⇒
+      if(seq.length > 0) Some(seq(0))
+      else None
+    }
+  }
+
+  def findByOpenID(openid: String): Future[Option[Principal]] = {
+    collection.find(BSONDocument("openid" -> BSONString(openid))).cursor[Principal].collect[Seq]() map { seq ⇒
       if(seq.length > 0) Some(seq(0))
       else None
     }

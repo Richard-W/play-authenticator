@@ -17,6 +17,7 @@ package play.modules.authenticator
 import play.api._
 import play.api.mvc._
 import play.api.inject._
+import play.api.libs.openid.OpenID
 import javax.inject._
 import reactivemongo.api._
 import akka.actor.ActorSystem
@@ -31,17 +32,47 @@ trait Authenticator {
   /** Get the currently authed principal */
   def principal()(implicit request: Request[AnyContent]): Future[Option[Principal]]
 
-  /** Authenticate a principal using its username and password */
-  def authenticate(name: String, pass: String)(res: (Option[Principal]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result]
+  /** Authenticate a principal using its username and password
+    *
+    * When the authentication try is evaluated the res function is called with either
+    * the now authenticated [[Principal]] or [[None]].
+    *
+    * {{{
+    * authenticator.authenticateWithPassword("user", "password") {
+    *   case Some(princ) ⇒ Future.successful((true, Ok("You are now logged in.")))
+    *   case None ⇒ Future.successful((false, Ok("Authentication failure.")))
+    * }
+    * }}}
+    *
+    * The boolean return value of res can be used to prevent a login even though the credentials are
+    * correct which might be of use for deactivating accounts.
+    */
+  def authenticateWithPassword(name: String, pass: String)(res: (Option[Principal]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result]
+
+  /** Authenticate a principal using its openid */
+  def authenticateWithOpenID(openid: String, callback: Call, axRequired: Seq[(String, String)] = Seq.empty, axOptional: Seq[(String, String)] = Seq.empty, realm: Option[String] = None)(implicit request: Request[AnyContent]): Future[Result]
+
+  /** Callback for openid
+    *
+    * If the openID is valid and a principal is found a [[Some[Principal]]] and [[Some[String]]] (the valid openID) is passed to res.
+    * If the openID is valid but no principal can be found [[None]] and [[Some[String]]] is passed to res.
+    * If the openID is invalid [[None]] and [[None]] is passed to res.
+    * The third parameter contains a map of the exchange attributes.
+    *
+    * The boolean return value of res can be used to prevent a login even though the credentials are
+    * correct.
+    */
+  def openIDCallback(res: (Option[Principal], Option[String], Map[String, String]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result]
 
   /** Unauthenticate a principal */
   def unauthenticate(result: Result)(implicit request: Request[AnyContent]): Future[Result]
 }
 
-final class AuthenticatorImpl @Inject()(
+private[authenticator] class AuthenticatorImpl @Inject()(
   val principals: PrincipalController,
-  actorSystem: ActorSystem
-) extends Authenticator {
+  actorSystem: ActorSystem,
+  application: Application
+) extends Authenticator with Results {
 
   /* Get an execution context */
   import actorSystem.dispatcher
@@ -53,7 +84,7 @@ final class AuthenticatorImpl @Inject()(
     }
   }
 
-  def authenticate(name: String, pass: String)(res: (Option[Principal]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result] = {
+  def authenticateWithPassword(name: String, pass: String)(res: (Option[Principal]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result] = {
     principals.findByName(name) flatMap {
       case Some(princ) ⇒
         if(princ.verifyPass(pass)) {
@@ -66,6 +97,28 @@ final class AuthenticatorImpl @Inject()(
         }
       case None ⇒
         res(None) map { case (_, result) ⇒ result }
+    }
+  }
+
+  def authenticateWithOpenID(openid: String, callback: Call, axRequired: Seq[(String, String)] = Seq.empty, axOptional: Seq[(String, String)] = Seq.empty, realm: Option[String] = None)(implicit request: Request[AnyContent]): Future[Result] = {
+    (OpenID.redirectURL(openid, callback.absoluteURL, axRequired, axOptional, realm)(application) map { Redirect(_) }
+  }
+
+  def openIDCallback(res: (Option[Principal], Option[String], Map[String, String]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result] = {
+    (OpenID.verifiedId(request, application) flatMap { userInfo ⇒
+      principals.findByOpenID(userInfo.id) flatMap { princOption ⇒
+        princOption match {
+          case Some(princ) ⇒
+            res(Some(princ), Some(userInfo.id), userInfo.attributes) map {
+              case (true, result) ⇒ result.withSession(request.session + ("authenticatorID" -> princ.id))
+              case (false, result) ⇒ result
+            }
+          case None ⇒
+            res(None, Some(userInfo.id), userInfo.attributes) map { case (_, result) ⇒ result }
+        }
+      }
+    }).recoverWith {
+      case t: Throwable ⇒ res(None, None, Map.empty) map { case (_, result) ⇒ result }
     }
   }
 
