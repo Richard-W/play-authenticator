@@ -40,10 +40,12 @@ case class Principal private[authenticator](
     Principal(id, name, openid, pass, values)
   }
 
+  /** Update the database entry of this principal */
   def save()(implicit authenticator: Authenticator): Future[Principal] = {
     authenticator.principals.save(this)
   }
 
+  /** Get an arbitrary value that is saved with the principal */
   def value[T](key: String)(implicit reader: BSONReader[_ <: BSONValue, T]): Option[T] = {
     values.get(key) flatMap { bson ⇒
       try {
@@ -58,18 +60,22 @@ case class Principal private[authenticator](
     }
   }
 
+  /** Set an arbitrary value to be saved with the principal */
   def value[T, B <: BSONValue](key: String, value: T)(implicit writer: BSONWriter[T, B]): Principal = {
     copy(values = BSONDocument(key -> writer.write(value).asInstanceOf[BSONValue]) ++ values)
   }
 
+  /** Change the password of the principal */
   def changePassword(pass: String): Principal = {
     copy(pass = Some(PasswordHash.create(pass)))
   }
 
+  /** Change the OpenID of the principal */
   def changeOpenID(openid: String): Principal = {
     copy(openid = Some(openid))
   }
 
+  /** Verify that the given password matches the principals password */
   def verifyPass(password: String): Boolean = (pass map { _.verify(password) }).getOrElse(false)
 }
 
