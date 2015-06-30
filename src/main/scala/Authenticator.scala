@@ -111,7 +111,7 @@ private[authenticator] class AuthenticatorImpl @Inject()(
   }
 
   def authenticateWithOpenID(openid: String, callback: Call, axRequired: Seq[(String, String)] = Seq.empty, axOptional: Seq[(String, String)] = Seq.empty, realm: Option[String] = None)(implicit request: Request[AnyContent]): Future[Result] = {
-    (OpenID.redirectURL(openid, callback.absoluteURL, axRequired, axOptional, realm)(application) map { Redirect(_) }
+    OpenID.redirectURL(openid, callback.absoluteURL, axRequired, axOptional, realm)(application) map { Redirect(_) }
   }
 
   def openIDCallback(res: (Option[Principal], Option[String], Map[String, String]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result] = {
