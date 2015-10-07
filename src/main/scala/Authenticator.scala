@@ -23,7 +23,6 @@ import reactivemongo.api._
 import akka.actor.ActorSystem
 import scala.concurrent.duration._
 import scala.concurrent.Future
-import play.modules.reactivemongo.ReactiveMongo
 
 trait Authenticator {
   /** Controller to retrieve, save, and create principals

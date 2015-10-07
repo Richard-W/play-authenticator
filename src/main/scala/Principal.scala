@@ -15,8 +15,6 @@
 package play.modules.authenticator
 
 import play.api._
-import play.modules.reactivemongo.ReactiveMongo
-import reactivemongo.api.collections.default.BSONCollection
 import reactivemongo.api._
 import reactivemongo.bson._
 import scala.concurrent.{ Future, ExecutionContext }

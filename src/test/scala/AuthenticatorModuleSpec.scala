@@ -26,10 +26,10 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import reactivemongo.bson._
 import reactivemongo.bson.DefaultBSONHandlers._
+import de.flapdoodle.embed.mongo.distribution.Version
 
 class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter with MongoEmbedDatabase {
 
-  val mongoURI = "mongodb://localhost:12345/test"
   var application: Application = null
   var injector: Injector = null
 
@@ -37,12 +37,13 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
 
   before {
     application = new GuiceApplicationBuilder()
-      .configure("mongo.uri" -> mongoURI)
+      .configure("mongodb.servers" -> Seq("localhost:12345"))
+      .configure("mongodb.db" -> "test")
       .bindings(new ReactiveMongoModule)
       .bindings(new AuthenticatorModule)
       .build
     injector = application.injector
-    mongoProps = mongoStart()
+    mongoProps = mongoStart(version = Version.V2_6_1)
   }
 
   after {

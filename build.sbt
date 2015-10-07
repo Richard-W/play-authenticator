@@ -33,7 +33,7 @@ libraryDependencies ++= {
   Seq(
     "com.typesafe.play"       %% "play"                 % playVersion     % "provided",
     "com.typesafe.play"       %% "play-ws"              % playVersion     % "compile",
-    "xyz.wiedenhoeft"         %% "play-reactivemongo"   % "0.1.0"         % "compile",
+    "org.reactivemongo"       %% "play2-reactivemongo"  % "0.11.7.play24" % "compile",
     "xyz.wiedenhoeft"         %% "scalacrypt"           % "0.4.0"         % "compile",
     "org.scalatest"           %% "scalatest"            % "2.2.4"         % "test",
     "com.github.simplyscala"  %% "scalatest-embedmongo" % "0.2.2"         % "test"

@@ -17,10 +17,10 @@ package play.modules.authenticator
 import scala.concurrent.Future
 import play.api._
 import javax.inject._
-import play.modules.reactivemongo.ReactiveMongo
+import play.modules.reactivemongo._
 import reactivemongo.bson._
 import reactivemongo.api._
-import reactivemongo.api.collections.default.BSONCollection
+import reactivemongo.api.collections.bson.BSONCollection
 import akka.actor.ActorSystem
 import scala.util.{ Try, Success, Failure }
 
@@ -50,7 +50,7 @@ trait PrincipalController {
 
 private[authenticator] class PrincipalControllerImpl @Inject()(
     conf: Configuration,
-    mongo: ReactiveMongo,
+    mongo: ReactiveMongoApi,
     actorSystem: ActorSystem
 ) extends PrincipalController {
 
