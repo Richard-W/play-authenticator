@@ -87,7 +87,7 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
     val name = "testuser4"
     val id = Await.result(authenticator.principals.createWithPassword(name, "testpass"), 5.seconds).get.id
     val princ1 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
-    princ1.value("test", true).value("str", "test").save
+    Await.result(princ1.value("test", true).value("str", "test").save, 5.seconds)
     val princ2 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
     princ2.value[Boolean]("test").get should be (true)
     princ2.value[String]("str").get should be ("test")
