@@ -60,7 +60,8 @@ case class Principal private[authenticator](
 
   /** Set an arbitrary value to be saved with the principal */
   def value[T, B <: BSONValue](key: String, value: T)(implicit writer: BSONWriter[T, B]): Principal = {
-    copy(values = BSONDocument(key -> writer.write(value).asInstanceOf[BSONValue]) ++ values)
+    val elems = values.elements.filter(_._1 != key) :+ (key, writer.write(value))
+    copy(values = BSONDocument(elems))
   }
 
   /** Change the password of the principal */
