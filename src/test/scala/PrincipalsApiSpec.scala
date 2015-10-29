@@ -28,7 +28,7 @@ import reactivemongo.bson._
 import reactivemongo.bson.DefaultBSONHandlers._
 import de.flapdoodle.embed.mongo.distribution.Version
 
-class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter with MongoEmbedDatabase {
+class PrincipalsApiSpec extends FlatSpec with Matchers with BeforeAndAfter with MongoEmbedDatabase {
 
   var application: Application = null
   var injector: Injector = null
@@ -51,20 +51,20 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
     mongoStop(mongoProps)
   }
 
-  "AuthenticatorModule" should "supply a working Authenticator" in {
-    implicit val authenticator = injector.instanceOf[Authenticator]
-    Await.result(authenticator.principals.createWithPassword("testuser", "testpass"), 5.seconds)
-    val princ = Await.result(authenticator.principals.findByName("testuser"), 5.seconds).get
+  "AuthenticatorModule" should "supply a working PrincipalsApi" in {
+    implicit val principals = injector.instanceOf[PrincipalsApi]
+    Await.result(principals.createWithPassword("testuser", "testpass"), 5.seconds)
+    val princ = Await.result(principals.findByName("testuser"), 5.seconds).get
     princ.verifyPass("testpass") should be (true)
     princ.verifyPass("wrongpass") should be (false)
   }
 
   "A Principal" should "keep its id when updated" in {
-    implicit val authenticator = injector.instanceOf[Authenticator]
-    Await.result(authenticator.principals.createWithPassword("testuser2", "testpass"), 5.seconds)
-    val princ1 = Await.result(authenticator.principals.findByName("testuser2"), 5.seconds).get
+    implicit val principals = injector.instanceOf[PrincipalsApi]
+    Await.result(principals.createWithPassword("testuser2", "testpass"), 5.seconds)
+    val princ1 = Await.result(principals.findByName("testuser2"), 5.seconds).get
     Await.result(princ1.value("foo", "bar").save, Duration.Inf)
-    val princ2 = Await.result(authenticator.principals.findByName("testuser2"), 5.seconds).get
+    val princ2 = Await.result(principals.findByName("testuser2"), 5.seconds).get
 
     princ1.id should be (princ2.id)
     princ1.value[String]("foo").isDefined should be (false)
@@ -72,53 +72,53 @@ class AuthenticatorModuleSpec extends FlatSpec with Matchers with BeforeAndAfter
   }
 
   it should "be retrievable by its name and id" in {
-    implicit val authenticator = injector.instanceOf[Authenticator]
+    implicit val principals = injector.instanceOf[PrincipalsApi]
     val name = "testuser3"
-    val id = Await.result(authenticator.principals.createWithPassword(name, "testpass"), 5.seconds).get.id
-    val princ1 = Await.result(authenticator.principals.findByName(name), 5.seconds).get
-    val princ2 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
+    val id = Await.result(principals.createWithPassword(name, "testpass"), 5.seconds).get.id
+    val princ1 = Await.result(principals.findByName(name), 5.seconds).get
+    val princ2 = Await.result(principals.findByID(id), 5.seconds).get
 
     princ1.id should be (id)
     princ2.name should be (name)
   }
 
   it should "be able to save arbitrary values" in {
-    implicit val authenticator = injector.instanceOf[Authenticator]
+    implicit val principals = injector.instanceOf[PrincipalsApi]
     val name = "testuser4"
-    val id = Await.result(authenticator.principals.createWithPassword(name, "testpass"), 5.seconds).get.id
-    val princ1 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
+    val id = Await.result(principals.createWithPassword(name, "testpass"), 5.seconds).get.id
+    val princ1 = Await.result(principals.findByID(id), 5.seconds).get
     Await.result(princ1.value("test", true).value("str", "test").save, 5.seconds)
-    val princ2 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
+    val princ2 = Await.result(principals.findByID(id), 5.seconds).get
     princ2.value[Boolean]("test").get should be (true)
     princ2.value[String]("str").get should be ("test")
     princ2.value[Boolean]("str") should be (None)
   }
 
   it should "be able to cleanly update values" in {
-    implicit val authenticator = injector.instanceOf[Authenticator]
+    implicit val principals = injector.instanceOf[PrincipalsApi]
     val name = "testuser4"
-    val id = Await.result(authenticator.principals.createWithPassword(name, "testpass", BSONDocument("key1" -> "v1", "key2" -> "v2")), 5.seconds).get.id
-    val princ1 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
+    val id = Await.result(principals.createWithPassword(name, "testpass", BSONDocument("key1" -> "v1", "key2" -> "v2")), 5.seconds).get.id
+    val princ1 = Await.result(principals.findByID(id), 5.seconds).get
     Await.result(princ1.value("key1", "v3").save, 5.seconds)
-    val princ2 = Await.result(authenticator.principals.findByID(id), 5.seconds).get
+    val princ2 = Await.result(principals.findByID(id), 5.seconds).get
     princ2.value[String]("key1").get should be ("v3")
     princ2.value[String]("key2").get should be ("v2")
   }
 
   it should "be registerable with an OpenID" in {
-    implicit val authenticator = injector.instanceOf[Authenticator]
-    Await.result(authenticator.principals.createWithOpenID("openiduser", "https://example.com/openiduser"), 5.seconds)
-    val princ = Await.result(authenticator.principals.findByName("openiduser"), 5.seconds).get
+    implicit val principals = injector.instanceOf[PrincipalsApi]
+    Await.result(principals.createWithOpenID("openiduser", "https://example.com/openiduser"), 5.seconds)
+    val princ = Await.result(principals.findByName("openiduser"), 5.seconds).get
     princ.name should be ("openiduser")
   }
 
   "The PrincipalController" should "be able to find all principals." in {
-    implicit val authenticator = injector.instanceOf[Authenticator]
-    Await.result(authenticator.principals.createWithPassword("a1", "testpass"), 5.seconds)
-    Await.result(authenticator.principals.createWithPassword("a2", "testpass"), 5.seconds)
-    Await.result(authenticator.principals.createWithPassword("a3", "testpass"), 5.seconds)
+    implicit val principals = injector.instanceOf[PrincipalsApi]
+    Await.result(principals.createWithPassword("a1", "testpass"), 5.seconds)
+    Await.result(principals.createWithPassword("a2", "testpass"), 5.seconds)
+    Await.result(principals.createWithPassword("a3", "testpass"), 5.seconds)
 
-    val allPrincs = Await.result(authenticator.principals.findAll, 5.seconds) map { princ ⇒ princ.name }
+    val allPrincs = Await.result(principals.findAll, 5.seconds) map { princ ⇒ princ.name }
     allPrincs.contains("a1") should be (true)
     allPrincs.contains("a2") should be (true)
     allPrincs.contains("a3") should be (true)

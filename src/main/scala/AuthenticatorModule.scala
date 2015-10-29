@@ -21,7 +21,7 @@ import javax.inject._
 class AuthenticatorModule extends Module {
 
   def bindings(env: Environment, conf: Configuration): Seq[Binding[_]] = Seq(
-    bind[Authenticator].to[AuthenticatorImpl].in[Singleton],
-    bind[PrincipalController].to[PrincipalControllerImpl].in[Singleton]
+    bind[AuthenticatorApi].to[AuthenticatorApiImpl].in[Singleton],
+    bind[PrincipalsApi].to[PrincipalsApiImpl].in[Singleton]
   )
 }

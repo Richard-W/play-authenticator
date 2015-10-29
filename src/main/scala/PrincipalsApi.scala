@@ -24,7 +24,7 @@ import reactivemongo.api.collections.bson.BSONCollection
 import akka.actor.ActorSystem
 import scala.util.{ Try, Success, Failure }
 
-trait PrincipalController {
+trait PrincipalsApi {
 
   /** Create a principal with a password */
   def createWithPassword(name: String, password: String, values: BSONDocument = BSONDocument()): Future[Try[Principal]]
@@ -48,11 +48,11 @@ trait PrincipalController {
   def save(princ: Principal): Future[Principal]
 }
 
-private[authenticator] class PrincipalControllerImpl @Inject()(
+private[authenticator] class PrincipalsApiImpl @Inject()(
     conf: Configuration,
     mongo: ReactiveMongoApi,
     actorSystem: ActorSystem
-) extends PrincipalController {
+) extends PrincipalsApi {
 
   /* Import execution context */
   import actorSystem.dispatcher

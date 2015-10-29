@@ -39,8 +39,8 @@ case class Principal private[authenticator](
   }
 
   /** Update the database entry of this principal */
-  def save()(implicit authenticator: Authenticator): Future[Principal] = {
-    authenticator.principals.save(this)
+  def save()(implicit principals: PrincipalsApi): Future[Principal] = {
+    principals.save(this)
   }
 
   /** Get an arbitrary value that is saved with the principal */

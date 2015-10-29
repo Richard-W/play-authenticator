@@ -24,12 +24,7 @@ import akka.actor.ActorSystem
 import scala.concurrent.duration._
 import scala.concurrent.Future
 
-trait Authenticator {
-  /** Controller to retrieve, save, and create principals
-    *
-    * This controller is used to manage creation of principal objects.
-    */
-  def principals: PrincipalController
+trait AuthenticatorApi {
 
   /** Get the currently authed principal */
   def principal()(implicit request: Request[AnyContent]): Future[Option[Principal]]
@@ -77,11 +72,11 @@ trait Authenticator {
   def unauthenticate(result: Result)(implicit request: Request[AnyContent]): Future[Result]
 }
 
-private[authenticator] class AuthenticatorImpl @Inject()(
-  val principals: PrincipalController,
+private[authenticator] class AuthenticatorApiImpl @Inject()(
+  val principals: PrincipalsApi,
   actorSystem: ActorSystem,
   application: Application
-) extends Authenticator with Results {
+) extends AuthenticatorApi with Results {
 
   /* Get an execution context */
   import actorSystem.dispatcher
