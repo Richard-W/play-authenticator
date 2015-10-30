@@ -15,10 +15,7 @@
 package play.modules.authenticator
 
 import org.scalatest._
-import com.github.simplyscala.{ MongoEmbedDatabase, MongodProps }
 import play.api._
-import play.api.inject._
-import play.api.inject.guice._
 import play.api.libs.concurrent.Execution.Implicits._
 import play.modules.reactivemongo._
 import scala.concurrent.Future
@@ -26,30 +23,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration._
 import reactivemongo.bson._
 import reactivemongo.bson.DefaultBSONHandlers._
-import de.flapdoodle.embed.mongo.distribution.Version
 
-class PrincipalsApiSpec extends FlatSpec with Matchers with BeforeAndAfter with MongoEmbedDatabase {
-
-  var application: Application = null
-  var injector: Injector = null
-
-  var mongoProps: MongodProps = null
-
-  before {
-    application = new GuiceApplicationBuilder()
-      .configure("mongodb.servers" -> Seq("localhost:12345"))
-      .configure("mongodb.db" -> "test")
-      .bindings(new ReactiveMongoModule)
-      .bindings(new AuthenticatorModule)
-      .build
-    injector = application.injector
-    mongoProps = mongoStart(version = Version.V2_6_1)
-  }
-
-  after {
-    Await.result(application.stop, Duration.Inf)
-    mongoStop(mongoProps)
-  }
+class PrincipalsApiSpec extends AuthenticatorSpec {
 
   "AuthenticatorModule" should "supply a working PrincipalsApi" in {
     implicit val principals = injector.instanceOf[PrincipalsApi]
