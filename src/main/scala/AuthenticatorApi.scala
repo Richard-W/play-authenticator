@@ -52,32 +52,32 @@ trait AuthenticatorApi {
     * })
     * }}}
     */
-  def authenticateWithPassword(credentials: Request[AnyContent] ⇒ (String, String))(policy: Option[Principal] ⇒ Future[(Boolean, Result)]): Action[AnyContent]
+  def authWithPassword(credentials: Request[AnyContent] ⇒ (String, String))(policy: Option[Principal] ⇒ Future[(Boolean, Result)]): Action[AnyContent]
 
   /** Authenticate a principal using its openid
     *
     * The future this function return might fail if the openid authentication process fails at retrieving
     * the redirect URL. You should handle this failure properly.
     */
-  def authenticateWithOpenID(openid: String, callback: Call, axRequired: Seq[(String, String)] = Seq.empty, axOptional: Seq[(String, String)] = Seq.empty, realm: Option[String] = None)(implicit request: Request[AnyContent]): Future[Result]
+  def authWithOpenId(callback: Call, axRequired: Seq[(String, String)] = Seq.empty, axOptional: Seq[(String, String)] = Seq.empty, realm: Option[String] = None)(credentials: Request[AnyContent] ⇒ String): Action[AnyContent]
 
   /** Callback for openid
     *
-    * If the openID is valid and a principal is found a [[Some[Principal]]] and [[Some[String]]] (the valid openID) is passed to res.
-    * If the openID is valid but no principal can be found [[None]] and [[Some[String]]] is passed to res.
-    * If the openID is invalid [[None]] and [[None]] is passed to res.
+    * If the openID is valid and a principal is found a [[Some[Principal]]] and [[Some[String]]] (the valid openID) is passed to policy.
+    * If the openID is valid but no principal can be found [[None]] and [[Some[String]]] is passed to policy.
+    * If the openID is invalid [[None]] and [[None]] is passed to policy.
     * The third parameter contains a map of the exchange attributes.
     *
-    * The boolean return value of res can be used to prevent a login even though the credentials are
+    * The boolean return value of policy can be used to prevent a login even though the credentials are
     * correct.
     *
-    * When the principal is not existing but the openID is valid res should trigger some kind of application specific registration
+    * When the principal does not exist but the openID is valid policy should trigger some kind of application specific registration
     * process.
     */
-  def openIDCallback(res: (Option[Principal], Option[String], Map[String, String]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result]
+  def openIdCallback(policy: (Option[Principal], Option[String], Map[String, String]) ⇒ Future[(Boolean, Result)]): Action[AnyContent]
 
   /** Unauthenticate a principal */
-  def unauthenticate(result: Result)(implicit request: Request[AnyContent]): Future[Result]
+  def unauth(result: Result): Action[AnyContent]
 }
 
 private[authenticator] class AuthenticatorApiImpl @Inject()(
@@ -96,7 +96,7 @@ private[authenticator] class AuthenticatorApiImpl @Inject()(
     }
   }
 
-  def authenticateWithPassword(credentials: Request[AnyContent] ⇒ (String, String))(policy: Option[Principal] ⇒ Future[(Boolean, Result)]): Action[AnyContent] = Action.async { request ⇒
+  def authWithPassword(credentials: Request[AnyContent] ⇒ (String, String))(policy: Option[Principal] ⇒ Future[(Boolean, Result)]): Action[AnyContent] = Action.async { request ⇒
     val (user, pass) = credentials(request)
     principals.findByName(user) flatMap {
       case Some(princ) ⇒
@@ -113,29 +113,30 @@ private[authenticator] class AuthenticatorApiImpl @Inject()(
     }
   }
 
-  def authenticateWithOpenID(openid: String, callback: Call, axRequired: Seq[(String, String)] = Seq.empty, axOptional: Seq[(String, String)] = Seq.empty, realm: Option[String] = None)(implicit request: Request[AnyContent]): Future[Result] = {
+  def authWithOpenId(callback: Call, axRequired: Seq[(String, String)] = Seq.empty, axOptional: Seq[(String, String)] = Seq.empty, realm: Option[String] = None)(credentials: Request[AnyContent] ⇒ String): Action[AnyContent] = Action.async { implicit request ⇒
+    val openid = credentials(request)
     OpenID.redirectURL(openid, callback.absoluteURL, axRequired, axOptional, realm)(application) map { Redirect(_) }
   }
 
-  def openIDCallback(res: (Option[Principal], Option[String], Map[String, String]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result] = {
+  def openIdCallback(policy: (Option[Principal], Option[String], Map[String, String]) ⇒ Future[(Boolean, Result)]): Action[AnyContent] = Action.async { request ⇒
     (OpenID.verifiedId(request, application) flatMap { userInfo ⇒
       principals.findByOpenID(userInfo.id) flatMap { princOption ⇒
         princOption match {
           case Some(princ) ⇒
-            res(Some(princ), Some(userInfo.id), userInfo.attributes) map {
+            policy(Some(princ), Some(userInfo.id), userInfo.attributes) map {
               case (true, result) ⇒ result.withSession(request.session + ("authenticatorID" -> princ.id))
               case (false, result) ⇒ result
             }
           case None ⇒
-            res(None, Some(userInfo.id), userInfo.attributes) map { case (_, result) ⇒ result }
+            policy(None, Some(userInfo.id), userInfo.attributes) map { case (_, result) ⇒ result }
         }
       }
     }).recoverWith {
-      case t: Throwable ⇒ res(None, None, Map.empty) map { case (_, result) ⇒ result }
+      case t: Throwable ⇒ policy(None, None, Map.empty) map { case (_, result) ⇒ result }
     }
   }
 
-  def unauthenticate(result: Result)(implicit request: Request[AnyContent]): Future[Result] = {
-    Future.successful(result.withSession(request.session - "authenticatorID"))
+  def unauth(result: Result): Action[AnyContent] = Action { request ⇒
+    result.withSession(request.session - "authenticatorID")
   }
 }
