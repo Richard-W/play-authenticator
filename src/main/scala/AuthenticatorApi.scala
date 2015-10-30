@@ -31,20 +31,28 @@ trait AuthenticatorApi {
 
   /** Authenticate a principal using its username and password
     *
-    * When the authentication try is evaluated the res function is called with either
-    * the now authenticated [[Principal]] or [[None]].
+    * Provides a controller action that wraps the whole login process. It needs
+    * a credentials function that extracts the username and password from the request
+    * and a policy function that decides whether or not to allow login for a
+    * given [[Principal]]
     *
     * {{{
-    * authenticator.authenticateWithPassword("user", "password") {
-    *   case Some(princ) ⇒ Future.successful((true, Ok("You are now logged in.")))
-    *   case None ⇒ Future.successful((false, Ok("Authentication failure.")))
-    * }
+    * def login = authenticator.authenticateWithPassword({ request ⇒
+    *   val body = request.body.asFormUrlEncoded.get
+    *   (body("username")(0), body("password")(0))
+    * })({
+    *   case Some(princ) ⇒
+    *     if(princ.value[Boolean]("activated").getOrElse(false)) {
+    *       Future.successful((true, Ok("Logged in")))
+    *     } else {
+    *       Future.successful((false, Ok("Not yet activated")))
+    *     }
+    *   case None ⇒
+    *     Future.successful((false, Ok("Wrong credentials")))
+    * })
     * }}}
-    *
-    * The boolean return value of res can be used to prevent a login even though the credentials are
-    * correct which might be of use for deactivating accounts.
     */
-  def authenticateWithPassword(name: String, pass: String)(res: (Option[Principal]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result]
+  def authenticateWithPassword(credentials: Request[AnyContent] ⇒ (String, String))(policy: Option[Principal] ⇒ Future[(Boolean, Result)]): Action[AnyContent]
 
   /** Authenticate a principal using its openid
     *
@@ -88,19 +96,20 @@ private[authenticator] class AuthenticatorApiImpl @Inject()(
     }
   }
 
-  def authenticateWithPassword(name: String, pass: String)(res: (Option[Principal]) ⇒ Future[(Boolean, Result)])(implicit request: Request[AnyContent]): Future[Result] = {
-    principals.findByName(name) flatMap {
+  def authenticateWithPassword(credentials: Request[AnyContent] ⇒ (String, String))(policy: Option[Principal] ⇒ Future[(Boolean, Result)]): Action[AnyContent] = Action.async { request ⇒
+    val (user, pass) = credentials(request)
+    principals.findByName(user) flatMap {
       case Some(princ) ⇒
         if(princ.verifyPass(pass)) {
-          res(Some(princ)) map {
+          policy(Some(princ)) map {
             case (true, result) ⇒ result.withSession(request.session + ("authenticatorID" -> princ.id))
             case (false, result) ⇒ result
           }
         } else {
-          res(None) map { case (_, result) ⇒ result }
+          policy(None) map { case (_, result) ⇒ result }
         }
       case None ⇒
-        res(None) map { case (_, result) ⇒ result }
+        policy(None) map { case (_, result) ⇒ result }
     }
   }
 
